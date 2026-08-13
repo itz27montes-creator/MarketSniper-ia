@@ -1,0 +1,977 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="MarketSniper IA — una interfaz de chatbot para valorar artículos y detectar oportunidades de compra."
+    />
+    <title>MarketSniper IA — Valor real, sin conjeturas</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --canvas: #060a15;
+        --canvas-deep: #040713;
+        --panel: rgba(15, 23, 42, 0.8);
+        --panel-solid: #10192b;
+        --panel-raised: #15213a;
+        --line: rgba(157, 176, 215, 0.16);
+        --line-strong: rgba(177, 155, 255, 0.34);
+        --text: #f5f7ff;
+        --text-soft: #c0cae4;
+        --muted: #7d8baa;
+        --muted-deep: #53617f;
+        --violet: #8a5cff;
+        --violet-bright: #a987ff;
+        --violet-dark: #6039d4;
+        --aqua: #4ee8d0;
+        --aqua-dim: #32baa7;
+        --amber: #ffcb69;
+        --danger: #ff7998;
+        --shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+        --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+        --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+        --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+        --radius-xl: 26px;
+        --radius-lg: 20px;
+        --radius-md: 14px;
+        --radius-sm: 10px;
+        --content-width: 1440px;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+
+      html { min-width: 320px; background: var(--canvas); }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        overflow-x: hidden;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 9% -9%, rgba(115, 76, 242, 0.15), transparent 28rem),
+          radial-gradient(circle at 89% 5%, rgba(42, 209, 179, 0.07), transparent 25rem),
+          linear-gradient(145deg, #080d1c 0%, var(--canvas) 45%, var(--canvas-deep) 100%);
+      }
+
+      body::before {
+        position: fixed;
+        z-index: -1;
+        inset: 0;
+        pointer-events: none;
+        content: "";
+        opacity: 0.34;
+        background-image:
+          linear-gradient(rgba(136, 152, 193, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(136, 152, 193, 0.035) 1px, transparent 1px);
+        background-size: 52px 52px;
+        mask-image: linear-gradient(to bottom, black, transparent 75%);
+      }
+
+      button, textarea, input { font: inherit; }
+      button { border: 0; cursor: pointer; }
+      button:focus-visible, textarea:focus-visible, .history-item:focus-visible {
+        outline: 2px solid var(--violet-bright);
+        outline-offset: 3px;
+      }
+
+      .icon { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+
+      .app-shell { min-height: 100vh; }
+
+      .topbar {
+        position: sticky;
+        z-index: 20;
+        top: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 76px;
+        padding: 0 max(28px, calc((100vw - var(--content-width)) / 2 + 28px));
+        border-bottom: 1px solid rgba(157, 176, 215, 0.13);
+        background: rgba(6, 10, 21, 0.75);
+        -webkit-backdrop-filter: blur(22px) saturate(1.25);
+        backdrop-filter: blur(22px) saturate(1.25);
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 11px;
+        min-width: 222px;
+        color: var(--text);
+        font-size: 16px;
+        font-weight: 740;
+        letter-spacing: -0.04em;
+        text-decoration: none;
+      }
+
+      .brand-mark {
+        position: relative;
+        display: grid;
+        width: 38px;
+        height: 38px;
+        place-items: center;
+        overflow: hidden;
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 13px;
+        background: linear-gradient(145deg, #a879ff, #6540e9 70%);
+        box-shadow: 0 8px 22px rgba(102, 64, 232, 0.3), inset 0 1px rgba(255, 255, 255, 0.25);
+      }
+
+      .brand-mark::after {
+        position: absolute;
+        top: -32%;
+        left: -46%;
+        width: 90%;
+        height: 170%;
+        content: "";
+        transform: rotate(28deg);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+      }
+
+      .brand-mark .icon { width: 21px; height: 21px; stroke-width: 2; }
+      .brand strong { color: #bc9dff; font-weight: 760; }
+
+      .topbar-actions { display: flex; align-items: center; gap: 10px; }
+
+      .topbar-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 40px;
+        padding: 0 12px;
+        color: var(--muted);
+        border-radius: 10px;
+        background: transparent;
+        transition: transform 160ms var(--ease-out), color 160ms ease, background-color 160ms ease;
+      }
+
+      .topbar-link .icon { width: 17px; height: 17px; }
+      .topbar-link:hover { color: var(--text-soft); background: rgba(132, 151, 191, 0.08); }
+      .topbar-link:active { transform: scale(0.97); }
+
+      .primary-button {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        min-height: 42px;
+        padding: 0 16px;
+        overflow: hidden;
+        color: white;
+        border: 1px solid rgba(215, 199, 255, 0.18);
+        border-radius: 12px;
+        background: linear-gradient(135deg, var(--violet) 0%, #7137ec 100%);
+        box-shadow: 0 10px 22px rgba(93, 52, 216, 0.28), inset 0 1px rgba(255, 255, 255, 0.2);
+        font-size: 14px;
+        font-weight: 680;
+        transition: transform 160ms var(--ease-out);
+      }
+
+      .primary-button::after {
+        position: absolute;
+        inset: 0;
+        content: "";
+        opacity: 0;
+        background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.26) 48%, transparent 64%);
+        transform: translateX(-120%);
+        transition: opacity 180ms ease;
+      }
+
+      @media (hover: hover) and (pointer: fine) {
+        .primary-button:hover { transform: translateY(-1px); }
+        .primary-button:hover::after { opacity: 1; transform: translateX(120%); transition: transform 260ms var(--ease-out), opacity 180ms ease; }
+      }
+      .primary-button:active { transform: scale(0.97); }
+      .primary-button .icon { width: 17px; height: 17px; }
+
+      .main-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 332px;
+        gap: 24px;
+        width: min(100%, var(--content-width));
+        min-height: calc(100vh - 76px);
+        margin: 0 auto;
+        padding: 30px 28px 26px;
+      }
+
+      .conversation {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+      }
+
+      .welcome-card {
+        position: relative;
+        overflow: hidden;
+        padding: 25px 26px 23px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-xl);
+        background:
+          linear-gradient(110deg, rgba(24, 34, 58, 0.94), rgba(13, 21, 39, 0.84)),
+          var(--panel);
+        box-shadow: var(--shadow), inset 0 1px rgba(255, 255, 255, 0.035);
+        animation: rise-in 280ms var(--ease-out) both;
+      }
+
+      .welcome-card::before {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 3px;
+        content: "";
+        border-radius: 3px;
+        background: linear-gradient(to bottom, #b094ff, #7d51ff 48%, rgba(125, 81, 255, 0));
+      }
+
+      .welcome-card::after {
+        position: absolute;
+        top: -58px;
+        right: -20px;
+        width: 240px;
+        height: 240px;
+        pointer-events: none;
+        content: "";
+        opacity: 0.58;
+        border: 1px solid rgba(172, 144, 255, 0.13);
+        border-radius: 50%;
+        box-shadow: 0 0 0 42px rgba(172, 144, 255, 0.035), 0 0 0 86px rgba(172, 144, 255, 0.02);
+      }
+
+      .welcome-eyebrow {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 12px;
+        color: var(--aqua);
+        font-size: 12px;
+        font-weight: 740;
+        letter-spacing: 0.075em;
+        text-transform: uppercase;
+      }
+
+      .welcome-eyebrow::before {
+        width: 7px;
+        height: 7px;
+        content: "";
+        border-radius: 50%;
+        background: var(--aqua);
+        box-shadow: 0 0 0 4px rgba(78, 232, 208, 0.11);
+      }
+
+      .welcome-copy { position: relative; z-index: 1; max-width: 710px; }
+      .welcome-copy h1 { margin: 0; font-size: clamp(24px, 3vw, 34px); font-weight: 720; letter-spacing: -0.055em; line-height: 1.08; }
+      .welcome-copy h1 em { color: #bd9fff; font-style: normal; }
+      .welcome-copy p { max-width: 660px; margin: 12px 0 0; color: var(--text-soft); font-size: 14px; line-height: 1.7; }
+
+      .value-points {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+        margin-top: 20px;
+      }
+
+      .value-point {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 10px;
+        color: #aebbd7;
+        border: 1px solid rgba(158, 180, 223, 0.12);
+        border-radius: 999px;
+        background: rgba(7, 12, 27, 0.42);
+        font-size: 12px;
+      }
+      .value-point .icon { width: 14px; height: 14px; color: var(--violet-bright); }
+
+      .quick-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+        margin: 18px 0 14px;
+        animation: rise-in 280ms var(--ease-out) 50ms both;
+      }
+
+      .quick-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 38px;
+        padding: 0 12px;
+        color: var(--text-soft);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(17, 26, 46, 0.66);
+        font-size: 12px;
+        font-weight: 630;
+        transition: transform 160ms var(--ease-out), color 160ms ease, border-color 160ms ease, background-color 160ms ease;
+      }
+      .quick-action .icon { width: 15px; height: 15px; color: var(--violet-bright); }
+      @media (hover: hover) and (pointer: fine) {
+        .quick-action:hover { color: white; border-color: var(--line-strong); background: rgba(114, 68, 237, 0.15); transform: translateY(-2px); }
+      }
+      .quick-action:active { transform: scale(0.97); }
+
+      .chat-stream {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 16px;
+        min-height: 220px;
+        padding: 6px 0 28px;
+      }
+
+      .stream-hint {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-top: 2px;
+        color: var(--muted-deep);
+        font-size: 12px;
+        animation: rise-in 280ms var(--ease-out) 90ms both;
+      }
+      .stream-hint::before, .stream-hint::after { height: 1px; flex: 1; content: ""; background: linear-gradient(90deg, transparent, var(--line)); }
+      .stream-hint::after { transform: rotate(180deg); }
+
+      .message {
+        display: flex;
+        max-width: min(780px, 93%);
+        gap: 10px;
+      }
+      .message--user { align-self: flex-end; flex-direction: row-reverse; }
+      .message-avatar {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        flex: 0 0 30px;
+        place-items: center;
+        color: #d8cbff;
+        border: 1px solid rgba(191, 169, 255, 0.27);
+        border-radius: 10px;
+        background: linear-gradient(145deg, rgba(140, 91, 255, 0.42), rgba(69, 42, 150, 0.48));
+      }
+      .message-avatar .icon { width: 16px; height: 16px; }
+      .message--user .message-avatar { color: #b8f6e9; border-color: rgba(78, 232, 208, 0.23); background: rgba(37, 132, 124, 0.22); }
+      .message-body { min-width: 0; }
+      .message-meta { display: flex; align-items: center; gap: 7px; margin: 1px 0 6px; color: var(--muted); font-size: 11px; font-weight: 650; }
+      .message--user .message-meta { justify-content: flex-end; }
+      .message-bubble {
+        padding: 13px 15px;
+        color: var(--text-soft);
+        border: 1px solid var(--line);
+        border-radius: 4px 15px 15px 15px;
+        background: rgba(17, 27, 48, 0.76);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+      .message--user .message-bubble { color: #effaf9; border-color: rgba(78, 232, 208, 0.18); border-radius: 15px 4px 15px 15px; background: linear-gradient(135deg, rgba(25, 103, 102, 0.48), rgba(25, 49, 70, 0.78)); }
+      .message-bubble p { margin: 0; }
+      .message-bubble strong { color: white; }
+
+      .message--new { animation: message-in 240ms var(--ease-out) both; }
+
+      .typing-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: max-content;
+        max-width: 95%;
+        padding: 12px 14px;
+        color: var(--muted);
+        border: 1px solid var(--line);
+        border-radius: 15px;
+        background: rgba(15, 24, 43, 0.82);
+        font-size: 12px;
+        animation: message-in 240ms var(--ease-out) both;
+      }
+      .typing-orb { position: relative; width: 22px; height: 22px; border: 2px solid rgba(169, 135, 255, 0.24); border-top-color: var(--violet-bright); border-radius: 50%; animation: spin 750ms linear infinite; }
+      .typing-orb::after { position: absolute; inset: 4px; content: ""; border-radius: inherit; background: rgba(169, 135, 255, 0.18); }
+
+      .valuation-card {
+        width: min(100%, 780px);
+        overflow: hidden;
+        border: 1px solid rgba(160, 177, 214, 0.17);
+        border-radius: 18px;
+        background: linear-gradient(145deg, rgba(21, 33, 58, 0.94), rgba(12, 20, 37, 0.95));
+        box-shadow: 0 16px 38px rgba(0, 0, 0, 0.18), inset 0 1px rgba(255, 255, 255, 0.04);
+      }
+      .valuation-card--new { animation: card-in 280ms var(--ease-out) both; }
+      .valuation-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 17px 18px 15px; border-bottom: 1px solid var(--line); }
+      .valuation-title { display: flex; align-items: flex-start; gap: 11px; }
+      .valuation-product-icon { display: grid; width: 39px; height: 39px; flex: 0 0 39px; place-items: center; color: #dacfff; border: 1px solid rgba(192, 169, 255, 0.24); border-radius: 12px; background: rgba(123, 79, 235, 0.17); }
+      .valuation-product-icon .icon { width: 20px; height: 20px; }
+      .valuation-title h2 { margin: 1px 0 4px; font-size: 14px; font-weight: 710; letter-spacing: -0.02em; }
+      .valuation-title p { margin: 0; color: var(--muted); font-size: 11px; }
+      .confidence { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; color: #a1f5e4; border: 1px solid rgba(78, 232, 208, 0.18); border-radius: 999px; background: rgba(29, 137, 122, 0.13); font-size: 10px; font-weight: 750; white-space: nowrap; }
+      .confidence::before { width: 6px; height: 6px; content: ""; border-radius: 50%; background: var(--aqua); box-shadow: 0 0 0 4px rgba(78, 232, 208, 0.1); }
+
+      .valuation-content { display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(210px, 0.82fr); gap: 14px; padding: 16px 18px 18px; }
+      .price-card { padding: 16px; border: 1px solid rgba(166, 183, 221, 0.12); border-radius: 14px; background: rgba(4, 9, 20, 0.35); }
+      .price-label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+      .price-label .icon { width: 13px; height: 13px; color: var(--amber); }
+      .price-number { display: flex; align-items: baseline; gap: 7px; margin-top: 9px; }
+      .price-number strong { font-size: clamp(27px, 4vw, 36px); font-weight: 740; letter-spacing: -0.06em; line-height: 1; }
+      .price-number span { color: var(--aqua); font-size: 11px; font-weight: 700; }
+      .range { position: relative; height: 5px; margin: 17px 0 9px; overflow: hidden; border-radius: 999px; background: rgba(119, 139, 184, 0.2); }
+      .range::before { position: absolute; inset: 0; width: 100%; content: ""; transform: scaleX(0); transform-origin: left; border-radius: inherit; background: linear-gradient(90deg, #5a3cc0 0%, #a46fff 55%, #55e6d2 100%); animation: meter-fill 280ms var(--ease-out) 110ms forwards; }
+      .range-marker { position: absolute; z-index: 1; top: 50%; left: 68%; width: 11px; height: 11px; opacity: 0; border: 2px solid #e8fcf8; border-radius: 50%; background: var(--aqua); box-shadow: 0 0 0 4px rgba(78, 232, 208, 0.12); transform: translate(-50%, -50%) scale(0.92); animation: marker-in 220ms var(--ease-out) 240ms forwards; }
+      .range-labels { display: flex; justify-content: space-between; color: var(--muted-deep); font-size: 10px; }
+      .price-note { margin: 13px 0 0; color: #aab6d0; font-size: 11px; line-height: 1.5; }
+      .price-note strong { color: var(--text-soft); }
+
+      .signal-card { position: relative; padding: 15px; overflow: hidden; border: 1px solid rgba(166, 183, 221, 0.12); border-radius: 14px; background: linear-gradient(145deg, rgba(30, 42, 71, 0.58), rgba(10, 17, 33, 0.64)); }
+      .signal-card::after { position: absolute; top: -35px; right: -44px; width: 120px; height: 120px; content: ""; opacity: 0.8; border: 1px solid rgba(157, 119, 255, 0.2); border-radius: 50%; box-shadow: 0 0 0 20px rgba(157, 119, 255, 0.05), 0 0 0 40px rgba(157, 119, 255, 0.025); }
+      .signal-card h3 { position: relative; z-index: 1; margin: 0; font-size: 12px; font-weight: 690; }
+      .signal-card p { position: relative; z-index: 1; margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+      .signal-list { position: relative; z-index: 1; display: grid; gap: 8px; margin: 13px 0 0; }
+      .signal-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 8px; border-top: 1px solid rgba(163, 181, 219, 0.09); font-size: 11px; }
+      .signal-item span { color: var(--muted); }
+      .signal-item strong { color: var(--text-soft); font-weight: 680; text-align: right; }
+      .signal-item strong.good { color: var(--aqua); }
+      .signal-item strong.warn { color: var(--amber); }
+
+      .valuation-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 18px 16px; }
+      .sources { display: flex; align-items: center; gap: 6px; color: var(--muted-deep); font-size: 10px; }
+      .sources .icon { width: 13px; height: 13px; }
+      .detail-button { display: inline-flex; align-items: center; gap: 6px; min-height: 31px; padding: 0 9px; color: #c5b3ff; border: 1px solid rgba(168, 139, 253, 0.2); border-radius: 9px; background: rgba(122, 74, 233, 0.1); font-size: 11px; font-weight: 680; transition: color 160ms ease, background-color 160ms ease, transform 160ms var(--ease-out); }
+      .detail-button .icon { width: 13px; height: 13px; }
+      @media (hover: hover) and (pointer: fine) { .detail-button:hover { color: white; background: rgba(122, 74, 233, 0.22); } }
+      .detail-button:active { transform: scale(0.97); }
+
+      .composer-wrap { position: sticky; z-index: 10; bottom: 0; padding-top: 16px; background: linear-gradient(to bottom, rgba(6, 10, 21, 0), var(--canvas) 34%); }
+      .composer { position: relative; padding: 8px; border: 1px solid rgba(163, 181, 219, 0.18); border-radius: 18px; background: rgba(17, 27, 47, 0.9); box-shadow: 0 14px 35px rgba(0, 0, 0, 0.25), inset 0 1px rgba(255, 255, 255, 0.035); transition: border-color 180ms ease; }
+      .composer:focus-within { border-color: rgba(161, 125, 255, 0.52); box-shadow: 0 16px 44px rgba(42, 20, 106, 0.24), inset 0 1px rgba(255, 255, 255, 0.05); }
+      .composer-main { display: flex; align-items: flex-end; gap: 8px; }
+      .attach-button, .send-button { display: grid; width: 40px; height: 40px; flex: 0 0 40px; place-items: center; border-radius: 12px; transition: transform 160ms var(--ease-out), color 160ms ease, background-color 160ms ease; }
+      .attach-button { color: #9ba9c5; background: transparent; }
+      .attach-button .icon { width: 20px; height: 20px; }
+      @media (hover: hover) and (pointer: fine) { .attach-button:hover { color: #d7ccff; background: rgba(141, 101, 251, 0.13); } }
+      .attach-button:active { transform: scale(0.97); }
+      .composer textarea { width: 100%; min-height: 40px; max-height: 112px; padding: 10px 3px 8px; resize: none; color: var(--text); outline: none; border: 0; background: transparent; font-size: 14px; line-height: 1.4; }
+      .composer textarea::placeholder { color: #647493; }
+      .send-button { position: relative; overflow: hidden; color: #c8d2e8; background: rgba(87, 105, 143, 0.22); }
+      .send-button:not(:disabled) { color: white; background: linear-gradient(145deg, #8f60ff, #6c40e9); box-shadow: 0 8px 18px rgba(93, 52, 216, 0.24); }
+      .send-button:not(:disabled):active { transform: scale(0.97); }
+      .send-button .icon { width: 19px; height: 19px; }
+      .send-button[aria-busy="true"] .icon { display: none; }
+      .send-spinner { display: none; width: 17px; height: 17px; border: 2px solid rgba(255, 255, 255, 0.26); border-top-color: white; border-radius: 50%; animation: spin 750ms linear infinite; }
+      .send-button[aria-busy="true"] .send-spinner { display: block; }
+      .composer-extra { display: flex; align-items: center; justify-content: space-between; min-height: 0; padding: 0 4px; color: var(--muted-deep); font-size: 10px; }
+      .composer-extra:not(.has-upload) { display: none; }
+      .upload-chip { display: inline-flex; align-items: center; gap: 7px; max-width: min(330px, 76vw); min-height: 26px; margin-top: 4px; padding: 3px 7px 3px 4px; overflow: hidden; color: #c7d2ea; border: 1px solid rgba(155, 176, 215, 0.17); border-radius: 8px; background: rgba(6, 11, 24, 0.45); }
+      .upload-preview { width: 18px; height: 18px; flex: 0 0 18px; overflow: hidden; border-radius: 5px; object-fit: cover; background: linear-gradient(145deg, #7b4fec, #31bda8); }
+      .upload-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .remove-upload { display: grid; width: 18px; height: 18px; flex: 0 0 18px; place-items: center; color: var(--muted); border-radius: 5px; background: transparent; transition: color 160ms ease, background-color 160ms ease; }
+      .remove-upload .icon { width: 13px; height: 13px; }
+      .remove-upload:hover { color: white; background: rgba(161, 179, 216, 0.13); }
+      .input-caption { margin-left: auto; padding-top: 5px; }
+
+      .history-column { position: relative; }
+      .history-panel { position: sticky; top: 106px; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-xl); background: linear-gradient(155deg, rgba(14, 23, 42, 0.86), rgba(9, 16, 31, 0.86)); box-shadow: var(--shadow), inset 0 1px rgba(255, 255, 255, 0.03); }
+      .history-panel::before { position: absolute; top: 0; right: 0; left: 0; height: 1px; content: ""; opacity: 0.9; background: linear-gradient(90deg, transparent, rgba(160, 130, 255, 0.48), transparent); }
+      .history-top { display: flex; align-items: center; justify-content: space-between; padding: 18px 17px 15px; border-bottom: 1px solid var(--line); }
+      .history-heading { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 700; }
+      .history-heading .icon { width: 17px; height: 17px; color: #b899ff; }
+      .history-all { padding: 4px 0; color: var(--muted); background: transparent; font-size: 11px; transition: color 160ms ease, transform 160ms var(--ease-out); }
+      .history-all:hover { color: #c8b5ff; }
+      .history-all:active { transform: scale(0.97); }
+      .history-all .icon { width: 13px; height: 13px; margin-left: 3px; vertical-align: -2px; }
+      .history-list { display: grid; gap: 7px; padding: 10px; }
+      .history-item { display: grid; grid-template-columns: 35px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; min-height: 58px; padding: 8px; color: inherit; text-align: left; border: 1px solid transparent; border-radius: 14px; background: transparent; transition: border-color 180ms ease, background-color 180ms ease, transform 160ms var(--ease-out); }
+      .history-item.is-active { border-color: rgba(162, 132, 255, 0.2); background: rgba(118, 76, 230, 0.12); }
+      @media (hover: hover) and (pointer: fine) { .history-item:hover { border-color: rgba(162, 132, 255, 0.16); background: rgba(132, 151, 191, 0.075); transform: translateX(-2px); } }
+      .history-item:active { transform: scale(0.985); }
+      .history-symbol { display: grid; width: 35px; height: 35px; place-items: center; color: #d2c3ff; border-radius: 11px; background: rgba(125, 80, 239, 0.15); }
+      .history-symbol--aqua { color: #9cf5e5; background: rgba(32, 139, 126, 0.16); }
+      .history-symbol--amber { color: #ffe0a2; background: rgba(178, 118, 22, 0.16); }
+      .history-symbol .icon { width: 17px; height: 17px; }
+      .history-text { min-width: 0; }
+      .history-text strong { display: block; overflow: hidden; color: var(--text-soft); font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+      .history-text span { display: block; margin-top: 3px; color: var(--muted-deep); font-size: 10px; }
+      .history-price { color: var(--text-soft); font-size: 11px; font-weight: 700; white-space: nowrap; }
+      .history-price em { display: block; margin-top: 3px; color: var(--aqua); font-size: 9px; font-style: normal; font-weight: 700; text-align: right; }
+      .history-footer { display: flex; align-items: center; gap: 9px; margin: 2px 17px 16px; padding: 12px 0 0; color: var(--muted-deep); border-top: 1px solid rgba(157, 176, 215, 0.09); font-size: 10px; line-height: 1.45; }
+      .history-footer .icon { width: 15px; height: 15px; flex: 0 0 15px; color: var(--violet-bright); }
+
+      .mobile-history-trigger { display: none; }
+
+      .modal-backdrop { position: fixed; z-index: 60; inset: 0; display: grid; place-items: center; padding: 20px; opacity: 0; pointer-events: none; background: rgba(3, 5, 12, 0.65); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); transition: opacity 250ms var(--ease-out); }
+      .modal-backdrop.is-open { opacity: 1; pointer-events: auto; }
+      .detail-modal { width: min(100%, 570px); overflow: hidden; border: 1px solid rgba(180, 157, 255, 0.27); border-radius: 22px; background: linear-gradient(145deg, #192644, #0e172a); box-shadow: 0 30px 90px rgba(0, 0, 0, 0.52); transform: scale(0.96); transition: transform 250ms var(--ease-out); }
+      .modal-backdrop.is-open .detail-modal { transform: scale(1); }
+      .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; padding: 22px 22px 16px; border-bottom: 1px solid var(--line); }
+      .modal-head h2 { margin: 0; font-size: 19px; letter-spacing: -0.035em; }
+      .modal-head p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
+      .icon-close { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; color: var(--muted); border-radius: 10px; background: rgba(145, 160, 195, 0.1); transition: color 160ms ease, background-color 160ms ease, transform 160ms var(--ease-out); }
+      .icon-close:hover { color: white; background: rgba(145, 160, 195, 0.18); }
+      .icon-close:active { transform: scale(0.97); }
+      .icon-close .icon { width: 17px; height: 17px; }
+      .modal-body { display: grid; gap: 11px; padding: 17px 22px 22px; }
+      .modal-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; padding: 13px; border: 1px solid rgba(161, 179, 216, 0.11); border-radius: 13px; background: rgba(5, 10, 21, 0.3); }
+      .modal-row span { color: var(--muted); font-size: 11px; }
+      .modal-row strong { color: var(--text-soft); font-size: 12px; text-align: right; }
+      .modal-row strong.good { color: var(--aqua); }
+
+      .toast { position: fixed; z-index: 80; right: 22px; bottom: 22px; display: flex; align-items: center; gap: 10px; max-width: min(360px, calc(100vw - 32px)); padding: 11px 13px; color: #eafdf9; opacity: 0; pointer-events: none; border: 1px solid rgba(78, 232, 208, 0.24); border-radius: 13px; background: rgba(15, 47, 52, 0.95); box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25); transform: translateY(100%); transition: opacity 220ms ease, transform 220ms var(--ease-out); font-size: 12px; }
+      .toast.is-visible { opacity: 1; transform: translateY(0); }
+      .toast .icon { width: 17px; height: 17px; color: var(--aqua); }
+
+      .motion-off, .motion-off *, .motion-off::before, .motion-off::after { animation: none !important; transition: none !important; }
+      .motion-off .range::before { transform: scaleX(1); }
+      .motion-off .range-marker { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+      @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes message-in { from { opacity: 0; transform: translateY(9px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+      @keyframes card-in { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+      @keyframes meter-fill { to { transform: scaleX(1); } }
+      @keyframes marker-in { to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      @media (max-width: 1040px) {
+        .main-layout { grid-template-columns: minmax(0, 1fr) 292px; gap: 18px; }
+        .brand { min-width: 180px; }
+      }
+
+      @media (max-width: 820px) {
+        .topbar { min-height: 68px; padding: 0 18px; }
+        .brand { min-width: 0; font-size: 15px; }
+        .brand-mark { width: 35px; height: 35px; border-radius: 12px; }
+        .topbar-link { display: none; }
+        .primary-button { min-height: 38px; padding: 0 12px; font-size: 12px; }
+        .primary-button .button-label { display: none; }
+        .main-layout { display: block; min-height: calc(100vh - 68px); padding: 20px 16px 16px; }
+        .history-column { position: static; }
+        .history-panel { position: fixed; z-index: 40; top: auto; right: 0; bottom: 0; left: 0; max-height: min(72vh, 570px); border-color: rgba(179, 156, 255, 0.25); border-radius: 24px 24px 0 0; opacity: 0; pointer-events: none; transform: translateY(100%); transition: transform 300ms var(--ease-drawer), opacity 220ms ease; }
+        .history-panel.is-open { opacity: 1; pointer-events: auto; transform: translateY(0); }
+        .history-column::after { position: fixed; z-index: 35; inset: 0; pointer-events: none; content: ""; opacity: 0; background: rgba(0, 0, 0, 0.35); transition: opacity 200ms ease; }
+        .history-column:has(.history-panel.is-open)::after { opacity: 1; pointer-events: auto; }
+        .mobile-history-trigger { position: fixed; z-index: 34; right: 16px; bottom: 92px; display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; color: #e6e0ff; border: 1px solid rgba(177, 151, 255, 0.3); border-radius: 13px; background: rgba(25, 31, 56, 0.88); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.23); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); font-size: 12px; font-weight: 680; transition: transform 160ms var(--ease-out), background-color 160ms ease; }
+        .mobile-history-trigger .icon { width: 16px; height: 16px; color: #bda2ff; }
+        .mobile-history-trigger:active { transform: scale(0.97); }
+        .conversation { padding-bottom: 0; }
+        .composer-wrap { bottom: 0; }
+      }
+
+      @media (max-width: 560px) {
+        .welcome-card { padding: 21px 18px 18px; border-radius: 20px; }
+        .welcome-copy h1 { font-size: 26px; }
+        .welcome-copy p { font-size: 13px; }
+        .value-points { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+        .value-point { padding: 7px 8px; font-size: 10px; }
+        .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+        .quick-action { min-width: 0; padding: 0 9px; font-size: 11px; }
+        .quick-action:last-child { grid-column: span 2; }
+        .chat-stream { min-height: 130px; padding-bottom: 19px; }
+        .message { max-width: 100%; }
+        .valuation-content { grid-template-columns: 1fr; }
+        .valuation-header { padding: 15px; }
+        .valuation-content { padding: 13px 15px 15px; }
+        .valuation-footer { padding: 0 15px 15px; }
+        .sources { max-width: 55%; }
+        .composer { border-radius: 16px; }
+        .input-caption { display: none; }
+        .mobile-history-trigger { bottom: 82px; }
+        .toast { right: 14px; bottom: 14px; }
+        .modal-backdrop { padding: 12px; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 1ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+          transition-duration: 120ms !important;
+        }
+        .history-panel { transform: none; }
+        .history-panel:not(.is-open) { display: none; }
+        .toast { transform: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <svg aria-hidden="true" style="position: absolute; width: 0; height: 0; overflow: hidden">
+      <symbol id="icon-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="3"></circle><path d="M12 2v2.2M12 19.8V22M2 12h2.2M19.8 12H22"></path></symbol>
+      <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></symbol>
+      <symbol id="icon-history" viewBox="0 0 24 24"><path d="M3.6 12a8.4 8.4 0 1 0 2.5-6"></path><path d="M3.6 4.7v4.1h4.1M12 7.5V12l3 1.8"></path></symbol>
+      <symbol id="icon-spark" viewBox="0 0 24 24"><path d="m12 2 1.7 6.3L20 10l-6.3 1.7L12 18l-1.7-6.3L4 10l6.3-1.7L12 2Z"></path><path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16Z"></path></symbol>
+      <symbol id="icon-shield" viewBox="0 0 24 24"><path d="M12 3 20 6v5.4c0 4.8-3.2 8-8 9.6-4.8-1.6-8-4.8-8-9.6V6l8-3Z"></path><path d="m8.5 12 2.2 2.2 4.8-5"></path></symbol>
+      <symbol id="icon-chart" viewBox="0 0 24 24"><path d="M4 19V5M4 19h17"></path><path d="m7 15 3.4-4 3 2.3L20 6"></path></symbol>
+      <symbol id="icon-camera" viewBox="0 0 24 24"><path d="M4.5 7.5h3l1.4-2h6.2l1.4 2h3a1.5 1.5 0 0 1 1.5 1.5v8.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5V9A1.5 1.5 0 0 1 4.5 7.5Z"></path><circle cx="12" cy="13.2" r="3.2"></circle></symbol>
+      <symbol id="icon-send" viewBox="0 0 24 24"><path d="m21 3-7.2 18-3.7-7.3L3 10.2 21 3Z"></path><path d="m10.1 13.7 4.4-4.4"></path></symbol>
+      <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"></path></symbol>
+      <symbol id="icon-watch" viewBox="0 0 24 24"><rect x="7" y="5.5" width="10" height="13" rx="3"></rect><path d="M9 5.5V3h6v2.5M9 18.5V21h6v-2.5M10 9h4M10 12h4"></path></symbol>
+      <symbol id="icon-shoe" viewBox="0 0 24 24"><path d="M4 16.5c3.3.2 5.7-1.4 7.1-5.7 1.7 3.1 4.5 5.2 8.4 6.2.9.2 1.5 1 1.5 1.9V20H4v-3.5Z"></path><path d="M4 20h17M8.7 16.1h2.1M13 17h2.2"></path></symbol>
+      <symbol id="icon-box" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"></path><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21"></path></symbol>
+      <symbol id="icon-tag" viewBox="0 0 24 24"><path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9-9-9Z"></path><circle cx="8" cy="8" r="1"></circle></symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12.5 4.2 4.2L19 7"></path></symbol>
+      <symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"></path></symbol>
+      <symbol id="icon-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"></rect><circle cx="8.5" cy="9" r="1.5"></circle><path d="m21 15-4.8-4.8L6 20"></path></symbol>
+      <symbol id="icon-bolt" viewBox="0 0 24 24"><path d="m13 2-8 12h7l-1 8 8-12h-7l1-8Z"></path></symbol>
+      <symbol id="icon-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></symbol>
+    </svg>
+
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#inicio" aria-label="MarketSniper IA, inicio">
+          <span class="brand-mark"><svg class="icon"><use href="#icon-target"></use></svg></span>
+          <span>MarketSniper <strong>IA</strong></span>
+        </a>
+        <nav class="topbar-actions" aria-label="Acciones principales">
+          <button class="topbar-link" id="historyNav" type="button">
+            <svg class="icon"><use href="#icon-history"></use></svg>
+            Historial
+          </button>
+          <button class="primary-button" id="newAnalysis" type="button">
+            <svg class="icon"><use href="#icon-search"></use></svg>
+            <span class="button-label">Nuevo análisis</span>
+          </button>
+        </nav>
+      </header>
+
+      <main class="main-layout" id="inicio">
+        <section class="conversation" aria-labelledby="chat-title">
+          <article class="welcome-card">
+            <div class="welcome-eyebrow">Motor de valoración activo</div>
+            <div class="welcome-copy">
+              <h1 id="chat-title">Encuentra el <em>valor real</em> antes de comprar.</h1>
+              <p>Comparte una foto o una descripción. Cruzaré precios, estado y señales de autenticidad para que negocies con una referencia clara.</p>
+            </div>
+            <div class="value-points" aria-label="Capacidades de MarketSniper">
+              <span class="value-point"><svg class="icon"><use href="#icon-chart"></use></svg>Rango de mercado</span>
+              <span class="value-point"><svg class="icon"><use href="#icon-shield"></use></svg>Señales de réplica</span>
+              <span class="value-point"><svg class="icon"><use href="#icon-spark"></use></svg>Consejo de negociación</span>
+            </div>
+          </article>
+
+          <div class="quick-actions" aria-label="Consultas sugeridas">
+            <button class="quick-action" type="button" data-prompt="Quiero valorar un Rolex Submariner Date usado.">
+              <svg class="icon"><use href="#icon-watch"></use></svg>Valorar un reloj
+            </button>
+            <button class="quick-action" type="button" data-prompt="¿Cuál es un buen precio para unas Air Jordan 1 Retro High?"><svg class="icon"><use href="#icon-shoe"></use></svg>Comparar sneakers</button>
+            <button class="quick-action" type="button" data-prompt="Ayúdame a saber si este gadget está a buen precio."><svg class="icon"><use href="#icon-box"></use></svg>Revisar un gadget</button>
+          </div>
+
+          <div class="chat-stream" id="chatStream" aria-live="polite" aria-label="Conversación con MarketSniper IA">
+            <div class="stream-hint">Tu próximo análisis empieza aquí</div>
+            <article class="message message--new">
+              <div class="message-avatar"><svg class="icon"><use href="#icon-spark"></use></svg></div>
+              <div class="message-body">
+                <div class="message-meta">MARKETSNIPER IA <span>·</span> AHORA</div>
+                <div class="message-bubble">
+                  <p>Hola. Dime qué artículo estás mirando y, si puedes, añade una foto. Te diré <strong>qué precio es justo</strong>, qué comprobar y hasta dónde conviene negociar.</p>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <div class="composer-wrap">
+            <form class="composer" id="composer" novalidate>
+              <div class="composer-main">
+                <input id="imageInput" type="file" accept="image/*" hidden />
+                <button class="attach-button" id="attachButton" type="button" aria-label="Adjuntar foto del artículo" title="Adjuntar foto">
+                  <svg class="icon"><use href="#icon-camera"></use></svg>
+                </button>
+                <textarea id="messageInput" rows="1" aria-label="Describe el artículo" placeholder="Describe el artículo o pega una foto…"></textarea>
+                <button class="send-button" id="sendButton" type="submit" aria-label="Enviar análisis" disabled aria-busy="false">
+                  <svg class="icon"><use href="#icon-send"></use></svg><span class="send-spinner" aria-hidden="true"></span>
+                </button>
+              </div>
+              <div class="composer-extra" id="composerExtra">
+                <div class="upload-chip" id="uploadChip">
+                  <img class="upload-preview" id="uploadPreview" alt="Vista previa de la imagen adjunta" />
+                  <span class="upload-name" id="uploadName">foto-articulo.jpg</span>
+                  <button class="remove-upload" id="removeUpload" type="button" aria-label="Quitar foto">
+                    <svg class="icon"><use href="#icon-close"></use></svg>
+                  </button>
+                </div>
+                <span class="input-caption">⌘/Ctrl + Enter para enviar</span>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <aside class="history-column" aria-label="Historial de valoraciones">
+          <button class="mobile-history-trigger" id="mobileHistoryTrigger" type="button" aria-expanded="false" aria-controls="historyPanel">
+            <svg class="icon"><use href="#icon-history"></use></svg>Historial
+          </button>
+          <section class="history-panel" id="historyPanel">
+            <div class="history-top">
+              <div class="history-heading"><svg class="icon"><use href="#icon-history"></use></svg>Tu historial</div>
+              <button class="history-all" id="historyAll" type="button">Ver todo <svg class="icon"><use href="#icon-arrow"></use></svg></button>
+            </div>
+            <div class="history-list" id="historyList">
+              <button class="history-item is-active" type="button" data-history="Rolex Submariner Date" data-value="8.450 €" data-type="watch">
+                <span class="history-symbol"><svg class="icon"><use href="#icon-watch"></use></svg></span>
+                <span class="history-text"><strong>Rolex Submariner</strong><span>Hace 2 horas</span></span>
+                <span class="history-price">8.450 €<em>Buena compra</em></span>
+              </button>
+              <button class="history-item" type="button" data-history="Air Jordan 1 Chicago" data-value="1.120 €" data-type="shoe">
+                <span class="history-symbol history-symbol--aqua"><svg class="icon"><use href="#icon-shoe"></use></svg></span>
+                <span class="history-text"><strong>Jordan 1 Chicago</strong><span>Ayer</span></span>
+                <span class="history-price">1.120 €<em>En rango</em></span>
+              </button>
+              <button class="history-item" type="button" data-history="Leica Q2" data-value="3.180 €" data-type="box">
+                <span class="history-symbol history-symbol--amber"><svg class="icon"><use href="#icon-image"></use></svg></span>
+                <span class="history-text"><strong>Leica Q2</strong><span>3 días</span></span>
+                <span class="history-price">3.180 €<em>Negociable</em></span>
+              </button>
+            </div>
+            <div class="history-footer"><svg class="icon"><use href="#icon-shield"></use></svg><span>Las valoraciones se guardan en este dispositivo para mantenerlas privadas.</span></div>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" id="modalBackdrop" aria-hidden="true">
+      <section class="detail-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1">
+        <div class="modal-head">
+          <div><h2 id="modalTitle">Desglose de confianza</h2><p>Cómo se ha construido esta estimación.</p></div>
+          <button class="icon-close" id="modalClose" type="button" aria-label="Cerrar desglose"><svg class="icon"><use href="#icon-close"></use></svg></button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-row"><span>Comparables verificados</span><strong>19 anuncios recientes</strong></div>
+          <div class="modal-row"><span>Estado detectado</span><strong>Muy bueno / revisar fotos</strong></div>
+          <div class="modal-row"><span>Liquidez del modelo</span><strong class="good">Alta · venta estimada: 8 días</strong></div>
+          <div class="modal-row"><span>Factor que más afecta el precio</span><strong>Accesorios y documentación</strong></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"><svg class="icon"><use href="#icon-check"></use></svg><span id="toastMessage">Listo.</span></div>
+
+    <script>
+      const composer = document.getElementById('composer');
+      const messageInput = document.getElementById('messageInput');
+      const sendButton = document.getElementById('sendButton');
+      const chatStream = document.getElementById('chatStream');
+      const imageInput = document.getElementById('imageInput');
+      const attachButton = document.getElementById('attachButton');
+      const composerExtra = document.getElementById('composerExtra');
+      const uploadPreview = document.getElementById('uploadPreview');
+      const uploadName = document.getElementById('uploadName');
+      const removeUpload = document.getElementById('removeUpload');
+      const modalBackdrop = document.getElementById('modalBackdrop');
+      const modalClose = document.getElementById('modalClose');
+      const toast = document.getElementById('toast');
+      const toastMessage = document.getElementById('toastMessage');
+      const historyPanel = document.getElementById('historyPanel');
+      const mobileHistoryTrigger = document.getElementById('mobileHistoryTrigger');
+      const historyNav = document.getElementById('historyNav');
+      const initialStreamMarkup = chatStream.innerHTML;
+      let selectedImage = null;
+      let toastTimer;
+      let activeRequestController = null;
+      const conversationHistory = [];
+      let lastModalTrigger = null;
+
+      const escapeHtml = (value) => value.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' }[character]));
+
+      function scrollChatToEnd() {
+        requestAnimationFrame(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }));
+      }
+
+      function resizeTextarea() {
+        messageInput.style.height = 'auto';
+        messageInput.style.height = `${Math.min(messageInput.scrollHeight, 112)}px`;
+      }
+
+      function syncSendState() {
+        sendButton.disabled = !(messageInput.value.trim() || selectedImage);
+      }
+
+      function clearUpload() {
+        if (selectedImage?.url) URL.revokeObjectURL(selectedImage.url);
+        selectedImage = null;
+        imageInput.value = '';
+        uploadPreview.removeAttribute('src');
+        composerExtra.classList.remove('has-upload');
+        syncSendState();
+      }
+
+      async function setUpload(file) {
+        if (!file.type.startsWith('image/')) {
+          showToast('Solo puedes adjuntar imágenes para este análisis.');
+          return;
+        }
+        if (file.size > 4 * 1024 * 1024) {
+          showToast('La foto supera el límite de 4 MB. Prueba con una versión más pequeña.');
+          imageInput.value = '';
+          return;
+        }
+        clearUpload();
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('No se pudo leer la imagen.'));
+          reader.readAsDataURL(file);
+        }).catch(() => null);
+        if (!dataUrl) {
+          showToast('No se pudo leer esa foto. Inténtalo con otro archivo.');
+          return;
+        }
+        selectedImage = { name: file.name, url: URL.createObjectURL(file), dataUrl, mimeType: file.type };
+        uploadPreview.src = selectedImage.url;
+        uploadName.textContent = selectedImage.name;
+        composerExtra.classList.add('has-upload');
+        syncSendState();
+        showToast('Foto adjunta. Añade cualquier detalle que conozcas.');
+      }
+
+      function showToast(message) {
+        clearTimeout(toastTimer);
+        toastMessage.textContent = message;
+        toast.classList.add('is-visible');
+        toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 3300);
+      }
+
+      function createUserMessage(content, image, instant) {
+        const safeContent = escapeHtml(content || 'He adjuntado una foto para analizar.');
+        const imageLine = image ? `<div style="display:flex;align-items:center;gap:7px;margin-top:${content ? '9px' : '0'};color:#a6e9dd;font-size:11px"><svg class="icon" style="width:14px;height:14px"><use href="#icon-image"></use></svg>Foto adjunta: ${escapeHtml(image.name)}</div>` : '';
+        return `<article class="message message--user${instant ? ' motion-off' : ' message--new'}"><div class="message-avatar"><svg class="icon"><use href="#icon-tag"></use></svg></div><div class="message-body"><div class="message-meta">TÚ <span>·</span> AHORA</div><div class="message-bubble"><p>${safeContent}</p>${imageLine}</div></div></article>`;
+      }
+
+      function createTypingCard(instant) {
+        return `<div class="typing-card${instant ? ' motion-off' : ''}" id="typingCard"><span class="typing-orb" aria-hidden="true"></span><span>Gemini está analizando el artículo…</span></div>`;
+      }
+
+      function renderAssistantText(text) {
+        const paragraphs = escapeHtml(text.trim()).split(/\n{2,}/).filter(Boolean);
+        return paragraphs.map((paragraph) => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`).join('');
+      }
+
+      function createAssistantMessage(reply, instant) {
+        return `<article class="message${instant ? ' motion-off' : ' message--new'}"><div class="message-avatar"><svg class="icon"><use href="#icon-spark"></use></svg></div><div class="message-body"><div class="message-meta">MARKETSNIPER IA <span>·</span> GEMINI</div><div class="message-bubble">${renderAssistantText(reply)}</div></div></article>`;
+      }
+
+      function createErrorMessage(message) {
+        return `<article class="message message--new"><div class="message-avatar"><svg class="icon"><use href="#icon-info"></use></svg></div><div class="message-body"><div class="message-meta">CONEXIÓN <span>·</span> REVISA LA CONFIGURACIÓN</div><div class="message-bubble"><p>${escapeHtml(message)}</p></div></div></article>`;
+      }
+
+      async function requestGemini(message, image, history) {
+        const controller = new AbortController();
+        activeRequestController = controller;
+        const timeout = window.setTimeout(() => controller.abort(), 35000);
+        const imagePayload = image ? { mimeType: image.mimeType, base64: image.dataUrl.split(',')[1] } : undefined;
+        try {
+          const response = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message, image: imagePayload, history }),
+            signal: controller.signal
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(result.error || 'No se pudo conectar con Gemini.');
+          return result.reply;
+        } finally {
+          window.clearTimeout(timeout);
+          if (activeRequestController === controller) activeRequestController = null;
+        }
+      }
+
+      function setSubmitting(isSubmitting) {
+        sendButton.setAttribute('aria-busy', String(isSubmitting));
+        messageInput.disabled = isSubmitting;
+        attachButton.disabled = isSubmitting;
+        if (!isSubmitting) {
+          messageInput.focus();
+          syncSendState();
+        } else {
+          sendButton.disabled = true;
+        }
+      }
+
+      async function sendMessage({ instant = false } = {}) {
+        const content = messageInput.value.trim();
+        const image = selectedImage;
+        if (!content && !image) return;
+        const requestText = content || 'Analiza el artículo de la foto y dime qué información falta para valorarlo.';
+        const previousHistory = [...conversationHistory];
+        conversationHistory.push({ role: 'user', text: requestText });
+        chatStream.insertAdjacentHTML('beforeend', createUserMessage(content, image, instant));
+        messageInput.value = '';
+        resizeTextarea();
+        clearUpload();
+        setSubmitting(true);
+        chatStream.insertAdjacentHTML('beforeend', createTypingCard(instant));
+        scrollChatToEnd();
+        try {
+          const reply = await requestGemini(requestText, image, previousHistory);
+          document.getElementById('typingCard')?.remove();
+          chatStream.insertAdjacentHTML('beforeend', createAssistantMessage(reply, instant));
+          conversationHistory.push({ role: 'model', text: reply });
+          scrollChatToEnd();
+        } catch (error) {
+          document.getElementById('typingCard')?.remove();
+          if (error.name !== 'AbortError') {
+            conversationHistory.pop();
+            chatStream.insertAdjacentHTML('beforeend', createErrorMessage(error.message || 'No fue posible conectar con Gemini.'));
+            scrollChatToEnd();
+          }
+        } finally {
+          setSubmitting(false);
+        }
+      }
+
+      function openModal(trigger) {
+        lastModalTrigger = trigger || document.activeElement;
+        modalBackdrop.classList.add('is-open');
+        modalBackdrop.setAttribute('aria-hidden', 'false');
+        document.querySelector('.detail-modal').focus();
+      }
+
+      function closeModal() {
+        modalBackdrop.classList.remove('is-open');
+        modalBackdrop.setAttribute('aria-hidden', 'true');
+        lastModalTrigger?.focus();
+      }
+
+      function setHistoryOpen(open) {
+        historyPanel.classList.toggle('is-open', open);
+        mobileHistoryTrigger.setAttribute('aria-expanded', String(open));
+      }
+
+      composer.addEventListener('submit', (event) => { event.preventDefault(); sendMessage(); });
+      messageInput.addEventListener('input', () => { resizeTextarea(); syncSendState(); });
+      messageInput.addEventListener('keydown', (event) => { if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') { event.preventDefault(); sendMessage({ instant: true }); } });
+      attachButton.addEventListener('click', () => imageInput.click());
+      imageInput.addEventListener('change', async () => { const [file] = imageInput.files; if (file) await setUpload(file); });
+      removeUpload.addEventListener('click', clearUpload);
+      document.querySelectorAll('.quick-action').forEach((button) => button.addEventListener('click', () => { messageInput.value = button.dataset.prompt; resizeTextarea(); syncSendState(); messageInput.focus(); }));
+      document.getElementById('newAnalysis').addEventListener('click', () => {
+        activeRequestController?.abort();
+        activeRequestController = null;
+        conversationHistory.length = 0;
+        chatStream.innerHTML = initialStreamMarkup;
+        messageInput.value = '';
+        resizeTextarea();
+        clearUpload();
+        setSubmitting(false);
+        messageInput.focus();
+        showToast('Nueva valoración preparada. Cuéntame qué artículo estás mirando.');
+      });
+      document.getElementById('historyAll').addEventListener('click', () => showToast('Se muestran tus valoraciones más recientes.'));
+      mobileHistoryTrigger.addEventListener('click', () => setHistoryOpen(!historyPanel.classList.contains('is-open')));
+      historyNav.addEventListener('click', () => setHistoryOpen(true));
+      document.querySelector('.history-column').addEventListener('click', (event) => {
+        const item = event.target.closest('.history-item');
+        if (!item) return;
+        document.querySelectorAll('.history-item').forEach((historyItem) => historyItem.classList.toggle('is-active', historyItem === item));
+        messageInput.value = `Muéstrame el análisis de ${item.dataset.history} (${item.dataset.value}).`;
+        resizeTextarea(); syncSendState(); setHistoryOpen(false); messageInput.focus();
+      });
+      document.addEventListener('click', (event) => { const button = event.target.closest('[data-open-detail]'); if (button) openModal(button); });
+      modalClose.addEventListener('click', closeModal);
+      modalBackdrop.addEventListener('click', (event) => { if (event.target === modalBackdrop) closeModal(); });
+      document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { if (modalBackdrop.classList.contains('is-open')) closeModal(); else if (historyPanel.classList.contains('is-open')) setHistoryOpen(false); } });
+      resizeTextarea();
+    </script>
+  </body>
+</html>
